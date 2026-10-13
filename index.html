@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Notely</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root{
+    --bg:#f2f2f7; --card:#ffffff; --txt:#000000; --mut:#8e8e93;
+    --acc:#007aff; --sep:#c6c6c8; --nav:rgba(242,242,247,.86);
+    --folder:#ffcc00; --danger:#ff3b30; --kb:#d1d1d6;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#000000; --card:#1c1c1e; --txt:#ffffff; --mut:#98989f;
+      --sep:#38383a; --nav:rgba(0,0,0,.78); --kb:#2c2c2e;
+    }
+    meta[name="apple-mobile-web-app-status-bar-style"]{content:"black";}
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    background:#0a0a0c;color:var(--txt);display:flex;justify-content:center;
+    -webkit-font-smoothing:antialiased;user-select:none;}
+  /* phone column */
+  #phone{width:100%;max-width:430px;height:100dvh;background:var(--bg);position:relative;
+    overflow:hidden;display:flex;flex-direction:column;}
+  @media (min-width:480px){
+    body{align-items:center;padding:24px;}
+    #phone{height:min(900px,calc(100dvh - 48px));border-radius:44px;
+      box-shadow:0 30px 80px rgba(0,0,0,.6), 0 0 0 10px #1a1a1e, 0 0 0 12px #333;}
+  }
+  .view{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);
+    transform:translateX(100%);transition:transform .28s cubic-bezier(.32,.72,.35,1);z-index:1;}
+  .view.active{transform:translateX(0);z-index:2;}
+  .view.behind{transform:translateX(-18%);z-index:1;}
+  /* nav */
+  .navbar{padding:calc(10px + env(safe-area-inset-top)) 16px 8px;
+    background:var(--nav);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border-bottom:.5px solid var(--sep);flex-shrink:0;}
+  .navrow{display:flex;align-items:center;justify-content:space-between;min-height:30px;}
+  .navbtn{color:var(--acc);font-size:17px;background:none;border:none;padding:6px 2px;cursor:pointer;}
+  .navbtn:active{opacity:.4;}
+  .navbtn.red{color:var(--danger);}
+  .largetitle{font-size:34px;font-weight:700;letter-spacing:-.5px;margin:6px 0 8px;}
+  .smalltitle{font-size:17px;font-weight:600;text-align:center;flex:1;}
+  /* search */
+  .searchbar{margin:2px 0 10px;background:var(--card);border-radius:10px;display:flex;align-items:center;
+    padding:7px 10px;gap:6px;}
+  .searchbar svg{flex-shrink:0;opacity:.6;}
+  .searchbar input{border:none;outline:none;background:none;font-size:16px;width:100%;color:var(--txt);}
+  .searchbar input::placeholder{color:var(--mut);}
+  /* content */
+  .content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .section{margin:18px 0 6px;padding:0 16px;font-size:13px;color:var(--mut);text-transform:uppercase;
+    letter-spacing:.4px;}
+  .group{background:var(--card);border-radius:12px;margin:0 16px;overflow:hidden;}
+  .row{display:flex;align-items:center;padding:11px 14px;gap:12px;cursor:pointer;position:relative;}
+  .row + .row::before{content:"";position:absolute;left:52px;right:0;top:0;height:.5px;background:var(--sep);}
+  .row:active{background:rgba(120,120,128,.16);}
+  .row .chev{margin-left:auto;color:#c7c7cc;font-size:15px;font-weight:600;}
+  .folder-ic{width:30px;height:30px;flex-shrink:0;}
+  .row .t{font-size:16px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .row .n{font-size:16px;color:var(--mut);}
+  /* note rows */
+  .noterow{padding:10px 16px;cursor:pointer;}
+  .noterow .nt{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .noterow .ns{font-size:14px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+  .noterow + .noterow{border-top:.5px solid var(--sep);}
+  .noterow:active{background:rgba(120,120,128,.16);}
+  .pin-tag{font-size:11px;color:var(--acc);font-weight:600;margin-right:6px;}
+  /* bottom toolbar */
+  .toolbar{padding:10px 20px calc(14px + env(safe-area-inset-bottom));display:flex;align-items:center;
+    justify-content:space-between;background:var(--nav);backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);border-top:.5px solid var(--sep);flex-shrink:0;}
+  .toolbar .count{font-size:12px;color:var(--mut);flex:1;text-align:center;}
+  .toolbtn{background:none;border:none;color:var(--acc);cursor:pointer;padding:4px;display:flex;}
+  .toolbtn:active{opacity:.4;}
+  .toolbtn svg{display:block;}
+  /* editor */
+  #noteDate{text-align:center;font-size:12px;color:var(--mut);padding:8px 0 2px;flex-shrink:0;}
+  #titleInput{border:none;outline:none;background:none;font-size:24px;font-weight:700;color:var(--txt);
+    padding:4px 20px;width:100%;font-family:inherit;}
+  #titleInput::placeholder{color:#c7c7cc;}
+  #bodyEditor{flex:1;overflow-y:auto;padding:6px 20px 20px;font-size:16px;line-height:1.5;outline:none;
+    color:var(--txt);-webkit-overflow-scrolling:touch;}
+  #bodyEditor:empty::before{content:""; }
+  #bodyEditor .todo{display:flex;align-items:flex-start;gap:10px;margin:4px 0;}
+  #bodyEditor .box{width:22px;height:22px;border:1.6px solid var(--mut);border-radius:50%;flex-shrink:0;
+    margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--acc);}
+  #bodyEditor .box.done{border-color:var(--acc);}
+  #bodyEditor .todo.done .tt{text-decoration:line-through;color:var(--mut);}
+  /* format bar */
+  #fmtbar{display:flex;gap:2px;padding:8px 10px calc(10px + env(safe-area-inset-bottom));overflow-x:auto;
+    background:var(--nav);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border-top:.5px solid var(--sep);flex-shrink:0;}
+  #fmtbar button{background:none;border:none;font-size:18px;color:var(--txt);padding:8px 12px;border-radius:8px;
+    cursor:pointer;white-space:nowrap;}
+  #fmtbar button:active{background:rgba(120,120,128,.25);}
+  #fmtbar button.on{color:var(--acc);}
+  /* action sheet */
+  #sheet{position:absolute;left:0;right:0;bottom:0;z-index:50;transform:translateY(110%);
+    transition:transform .25s ease;}
+  #sheet.open{transform:translateY(0);}
+  #sheet .opt{background:var(--card);margin:0 12px;border-radius:14px;overflow:hidden;}
+  #sheet .opt button{display:block;width:100%;padding:15px;background:none;border:none;font-size:17px;
+    color:var(--acc);cursor:pointer;}
+  #sheet .opt button + button{border-top:.5px solid var(--sep);}
+  #sheet .opt button.danger{color:var(--danger);}
+  #sheet .cancel{margin:10px 12px calc(12px + env(safe-area-inset-bottom));}
+  #scrim{position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:40;opacity:0;pointer-events:none;
+    transition:opacity .25s;}
+  #scrim.open{opacity:1;pointer-events:auto;}
+  /* prompt modal */
+  #modal{position:absolute;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.35);padding:40px;}
+  #modal.open{display:flex;}
+  #modal .box{background:var(--card);border-radius:14px;width:100%;max-width:300px;overflow:hidden;text-align:center;}
+  #modal .box h3{font-size:17px;margin:18px 16px 6px;font-weight:600;}
+  #modal .box p{font-size:13px;color:var(--mut);margin:0 16px 12px;}
+  #modal .box input{width:calc(100% - 32px);margin:0 16px 14px;padding:9px 10px;font-size:16px;border:.5px solid var(--sep);
+    border-radius:8px;background:var(--bg);color:var(--txt);outline:none;font-family:inherit;}
+  #modal .mrow{display:flex;border-top:.5px solid var(--sep);}
+  #modal .mrow button{flex:1;padding:13px;background:none;border:none;font-size:17px;color:var(--acc);cursor:pointer;}
+  #modal .mrow button + button{border-left:.5px solid var(--sep);}
+  #modal .mrow button.bold{font-weight:600;}
+  .empty{text-align:center;color:var(--mut);font-size:15px;margin-top:60px;padding:0 40px;line-height:1.6;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div id="phone">
+
+  <!-- ============ FOLDERS ============ -->
+  <section class="view active" id="vFolders">
+    <div class="navbar">
+      <div class="navrow">
+        <span></span>
+        <button class="navbtn" id="editFoldersBtn">Edit</button>
+      </div>
+      <div class="largetitle">Folders</div>
+      <div class="searchbar">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="#8e8e93" stroke-width="1.6"/><line x1="11" y1="11" x2="14.5" y2="14.5" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input id="folderSearch" placeholder="Search" autocomplete="off">
+      </div>
+    </div>
+    <div class="content" id="folderList"></div>
+    <div class="toolbar">
+      <button class="toolbtn" id="newFolderBtn" aria-label="New folder">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      </button>
+      <span></span><span></span>
+    </div>
+  </section>
+
+  <!-- ============ NOTES LIST ============ -->
+  <section class="view" id="vNotes">
+    <div class="navbar">
+      <div class="navrow">
+        <button class="navbtn" id="backToFolders">‹ Folders</button>
+        <button class="navbtn" id="editNotesBtn">Edit</button>
+      </div>
+      <div class="largetitle" id="notesTitle">Notes</div>
+      <div class="searchbar">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="#8e8e93" stroke-width="1.6"/><line x1="11" y1="11" x2="14.5" y2="14.5" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input id="noteSearch" placeholder="Search" autocomplete="off">
+      </div>
+    </div>
+    <div class="content" id="notesList"></div>
+    <div class="toolbar">
+      <span></span>
+      <span class="count" id="notesCount"></span>
+      <button class="toolbtn" id="composeBtn" aria-label="New note">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ EDITOR ============ -->
+  <section class="view" id="vEditor">
+    <div class="navbar">
+      <div class="navrow">
+        <button class="navbtn" id="backToNotes">‹ <span id="backFolderName">Notes</span></button>
+        <span style="display:flex;gap:18px;">
+          <button class="navbtn" id="pinBtn" aria-label="Pin">📌</button>
+          <button class="navbtn" id="noteMenuBtn" aria-label="More">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="4" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="10" cy="16" r="1.6"/></svg>
+          </button>
+          <button class="navbtn bold" id="doneBtn" style="font-weight:600;">Done</button>
+        </span>
+      </div>
+    </div>
+    <div id="noteDate"></div>
+    <input id="titleInput" placeholder="Title" autocomplete="off">
+    <div id="bodyEditor" contenteditable="true" data-placeholder=""></div>
+    <div id="fmtbar">
+      <button data-cmd="bold" title="Bold"><b>B</b></button>
+      <button data-cmd="italic" title="Italic"><i>I</i></button>
+      <button data-cmd="underline" title="Underline"><u>U</u></button>
+      <button data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+      <button id="checklistBtn" title="Checklist">☑</button>
+      <button data-cmd="insertUnorderedList" title="Bullets">• ≡</button>
+      <button id="shareBtn" title="Share">⤴</button>
+    </div>
+  </section>
+
+  <!-- action sheet -->
+  <div id="scrim"></div>
+  <div id="sheet">
+    <div class="opt" id="sheetOpts"></div>
+    <div class="opt cancel"><button id="sheetCancel" style="font-weight:600;">Cancel</button></div>
+  </div>
+
+  <!-- modal -->
+  <div id="modal"><div class="box">
+    <h3 id="mTitle"></h3><p id="mSub"></p>
+    <input id="mInput" class="hidden">
+    <div class="mrow">
+      <button id="mCancel">Cancel</button>
+      <button id="mOk" class="bold">OK</button>
+    </div>
+  </div></div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const LS_KEY = 'notely-v1';
+
+/* ---------- store ---------- */
+let store = {folders:[], notes:[]};
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(LS_KEY)); if(s && s.folders) store = s; }catch(e){}
+  if(!store.folders.length){
+    const fid = uid();
+    store.folders = [{id:fid, name:'Notes'}];
+    store.notes = [{
+      id: uid(), folderId: fid, title:'Welcome to Notely',
+      html:'<div>This is your iPhone Notes, on the web.</div><div><br></div><div>Tap <b>+</b> to start a new note, use the toolbar for <b>bold</b>, <i>italic</i> and checklists.</div><div><br></div><div class="todo"><span class="box"></span><span class="tt">Try a checklist item</span></div>',
+      pinned:false, created:Date.now(), updated:Date.now()
+    }];
+    save();
+  }
+}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
+function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+
+/* ---------- navigation ---------- */
+const views = {folders:$('vFolders'), notes:$('vNotes'), editor:$('vEditor')};
+let stack = ['folders'];
+function go(name){
+  const cur = stack[stack.length-1];
+  if(cur === name) return;
+  stack.push(name);
+  render(name);
+  views[cur].classList.remove('active'); views[cur].classList.add('behind');
+  views[name].classList.add('active');
+}
+function back(){
+  if(stack.length < 2) return;
+  const cur = stack.pop();
+  const prev = stack[stack.length-1];
+  if(cur === 'editor') persistEditor();
+  views[cur].classList.remove('active');
+  views[prev].classList.remove('behind'); views[prev].classList.add('active');
+  render(prev);
+}
+function render(name){
+  if(name==='folders') renderFolders();
+  else if(name==='notes') renderNotes();
+}
+
+/* ---------- folders view ---------- */
+let editingFolders = false;
+const FOLDER_SVG = '<svg class="folder-ic" viewBox="0 0 32 32"><path d="M2 9a3 3 0 0 1 3-3h7l3 3h12a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#ffcc00"/><path d="M2 12a3 3 0 0 1 3-3h24a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#ffd60a" opacity=".55"/></svg>';
+function folderCount(fid){ return store.notes.filter(n=>n.folderId===fid).length; }
+function renderFolders(){
+  const q = $('folderSearch').value.trim().toLowerCase();
+  const box = $('folderList'); box.innerHTML = '';
+  const mk = (label, folders) => {
+    const list = folders.filter(f=>!q || f.name.toLowerCase().includes(q));
+    if(!list.length && q) return;
+    const sec = document.createElement('div'); sec.className='section'; sec.textContent = label; box.appendChild(sec);
+    const g = document.createElement('div'); g.className='group'; box.appendChild(g);
+    list.forEach(f=>{
+      const r = document.createElement('div'); r.className='row';
+      r.innerHTML = FOLDER_SVG + '<span class="t"></span><span class="n">'+folderCount(f.id)+'</span><span class="chev">›</span>';
+      r.querySelector('.t').textContent = f.name;
+      r.addEventListener('click', ()=>{
+        if(editingFolders){ folderMenu(f); return; }
+        openFolder = f.id; $('noteSearch').value=''; editingNotes=false; syncEditBtns(); go('notes');
+      });
+      g.appendChild(r);
+    });
+    if(!list.length){ const e=document.createElement('div'); e.className='empty'; e.textContent='No folders match.'; box.appendChild(e); }
+  };
+  mk('iCloud', store.folders);
+}
+$('editFoldersBtn').addEventListener('click', ()=>{
+  editingFolders = !editingFolders;
+  $('editFoldersBtn').textContent = editingFolders ? 'Done' : 'Edit';
+  renderFolders();
+});
+$('folderSearch').addEventListener('input', renderFolders);
+$('newFolderBtn').addEventListener('click', ()=>{
+  promptModal('New Folder','Enter a name for this folder.', '', (name)=>{
+    if(!name.trim()) return;
+    store.folders.push({id:uid(), name:name.trim()}); save(); renderFolders();
+  });
+});
+function folderMenu(f){
+  openSheet([
+    {label:'Rename', fn:()=>promptModal('Rename Folder','', f.name, (name)=>{
+      if(name.trim()){ f.name = name.trim(); save(); renderFolders(); }
+    })},
+    {label:'Delete Folder', danger:true, fn:()=>confirmModal('Delete "'+f.name+'"?','All notes inside will be deleted.', ()=>{
+      if(store.folders.length<=1){ alert2('Cannot delete the last folder.'); return; }
+      store.notes = store.notes.filter(n=>n.folderId!==f.id);
+      store.folders = store.folders.filter(x=>x.id!==f.id);
+      save(); renderFolders();
+    })}
+  ]);
+}
+
+/* ---------- notes list ---------- */
+let openFolder = null, editingNotes = false;
+function folderName(fid){ const f = store.folders.find(x=>x.id===fid); return f?f.name:'Notes'; }
+function fmtDate(ts){
+  const d = new Date(ts), now = new Date();
+  const sameDay = d.toDateString()===now.toDateString();
+  const y = new Date(now); y.setDate(now.getDate()-1);
+  const t = d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  if(sameDay) return t;
+  if(d.toDateString()===y.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([], {day:'numeric',month:'numeric',year:'2-digit'});
+}
+function plain(html){ const d=document.createElement('div'); d.innerHTML=html||''; return d.textContent.trim().replace(/\s+/g,' '); }
+function renderNotes(){
+  $('notesTitle').textContent = folderName(openFolder);
+  const q = $('noteSearch').value.trim().toLowerCase();
+  const all = store.notes.filter(n=>n.folderId===openFolder)
+    .filter(n=>!q || n.title.toLowerCase().includes(q) || plain(n.html).toLowerCase().includes(q))
+    .sort((a,b)=>b.updated-a.updated);
+  const pinned = all.filter(n=>n.pinned), rest = all.filter(n=>!n.pinned);
+  const box = $('notesList'); box.innerHTML='';
+  $('notesCount').textContent = all.length + (all.length===1?' Note':' Notes');
+  const addRow = (n) => {
+    const r = document.createElement('div'); r.className='noterow';
+    const snip = plain(n.html).slice(0,80);
+    const title = n.title || '(No title)';
+    r.innerHTML = '<div class="nt"></div><div class="ns"><span class="dt"></span>  <span class="tx"></span></div>';
+    r.querySelector('.nt').textContent = title;
+    r.querySelector('.dt').textContent = fmtDate(n.updated);
+    r.querySelector('.tx').textContent = snip || 'No additional text';
+    if(editingNotes){
+      r.style.paddingLeft='38px';
+      const del = document.createElement('span');
+      del.textContent='⊖'; del.style.cssText='position:absolute;left:12px;color:var(--danger);font-size:20px;';
+      del.addEventListener('click', (e)=>{ e.stopPropagation();
+        confirmModal('Delete Note?','"'+title+'" will be permanently deleted.', ()=>{
+          store.notes = store.notes.filter(x=>x.id!==n.id); save(); renderNotes();
+        });
+      });
+      r.style.position='relative'; r.appendChild(del);
+    }
+    r.addEventListener('click', ()=>{ if(editingNotes) return; openNote = n.id; go('editor'); });
+    box.appendChild(r);
+  };
+  if(pinned.length){
+    const s=document.createElement('div'); s.className='section'; s.textContent='Pinned'; box.appendChild(s);
+    pinned.forEach(addRow);
+  }
+  if(rest.length || pinned.length){
+    if(pinned.length){ const s=document.createElement('div'); s.className='section'; s.textContent='Notes'; box.appendChild(s); }
+    rest.forEach(addRow);
+  } else {
+    const e=document.createElement('div'); e.className='empty';
+    e.textContent = q ? 'No notes match your search.' : 'No notes yet. Tap + to create one.';
+    box.appendChild(e);
+  }
+}
+function syncEditBtns(){
+  $('editNotesBtn').textContent = editingNotes ? 'Done' : 'Edit';
+}
+$('editNotesBtn').addEventListener('click', ()=>{ editingNotes=!editingNotes; syncEditBtns(); renderNotes(); });
+$('noteSearch').addEventListener('input', renderNotes);
+$('backToFolders').addEventListener('click', back);
+$('composeBtn').addEventListener('click', ()=>{
+  const n = {id:uid(), folderId:openFolder, title:'', html:'', pinned:false, created:Date.now(), updated:Date.now()};
+  store.notes.push(n); save(); openNote = n.id; editingNotes=false; syncEditBtns(); go('editor');
+  setTimeout(()=>$('titleInput').focus(), 320);
+});
+
+/* ---------- editor ---------- */
+let openNote = null;
+function note(){ return store.notes.find(n=>n.id===openNote); }
+function go_editor(){ /* placeholder */ }
+function renderEditor(){
+  const n = note(); if(!n){ back(); return; }
+  $('backFolderName').textContent = folderName(n.folderId);
+  $('noteDate').textContent = new Date(n.updated).toLocaleString([], {day:'numeric',month:'long',year:'numeric',hour:'numeric',minute:'2-digit'});
+  $('titleInput').value = n.title || '';
+  $('bodyEditor').innerHTML = n.html || '';
+  $('pinBtn').style.opacity = n.pinned ? '1' : '.35';
+}
+const _origRender = render;
+render = function(name){ if(name==='editor') renderEditor(); else _origRender(name); };
+function persistEditor(){
+  const n = note(); if(!n) return;
+  n.title = $('titleInput').value.trim();
+  n.html = $('bodyEditor').innerHTML;
+  n.updated = Date.now();
+  if(!n.title && !plain(n.html)) store.notes = store.notes.filter(x=>x.id!==n.id);
+  save();
+}
+let saveT = null;
+function autoSave(){
+  clearTimeout(saveT);
+  saveT = setTimeout(()=>{ const n=note(); if(n){ n.title=$('titleInput').value.trim(); n.html=$('bodyEditor').innerHTML; n.updated=Date.now(); save(); } }, 600);
+}
+$('titleInput').addEventListener('input', autoSave);
+$('bodyEditor').addEventListener('input', autoSave);
+$('backToNotes').addEventListener('click', back);
+$('doneBtn').addEventListener('click', ()=>{ persistEditor(); back(); });
+$('pinBtn').addEventListener('click', ()=>{
+  const n = note(); if(!n) return;
+  n.pinned = !n.pinned; n.updated = Date.now(); save();
+  $('pinBtn').style.opacity = n.pinned ? '1' : '.35';
+});
+$('noteMenuBtn').addEventListener('click', ()=>{
+  const n = note(); if(!n) return;
+  openSheet([
+    {label: n.pinned ? 'Unpin' : 'Pin', fn:()=>$('pinBtn').click()},
+    {label:'Move to Folder…', fn:()=>{
+      openSheet(store.folders.filter(f=>f.id!==n.folderId).map(f=>({
+        label: f.name, fn:()=>{ n.folderId=f.id; save(); $('backFolderName').textContent=f.name; }
+      })));
+    }},
+    {label:'Share Note', fn:()=>{
+      const text = (n.title? n.title+'\n\n':'') + plain(n.html);
+      if(navigator.share){ navigator.share({title:n.title||'Note', text}).catch(()=>{}); }
+      else if(navigator.clipboard){ navigator.clipboard.writeText(text).then(()=>alert2('Note copied to clipboard.')); }
+    }},
+    {label:'Delete', danger:true, fn:()=>confirmModal('Delete Note?','This note will be permanently deleted.', ()=>{
+      store.notes = store.notes.filter(x=>x.id!==n.id); save(); openNote=null; back();
+    })}
+  ]);
+});
+/* formatting */
+document.querySelectorAll('#fmtbar [data-cmd]').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    $('bodyEditor').focus();
+    document.execCommand(b.dataset.cmd, false, null);
+    autoSave();
+  });
+});
+$('checklistBtn').addEventListener('click', ()=>{
+  const ed = $('bodyEditor'); ed.focus();
+  document.execCommand('insertHTML', false, '<div class="todo"><span class="box" contenteditable="false"></span><span class="tt">&nbsp;</span></div><div><br></div>');
+  autoSave();
+});
+$('bodyEditor').addEventListener('click', (e)=>{
+  if(e.target.classList && e.target.classList.contains('box')){
+    e.preventDefault();
+    const todo = e.target.closest('.todo');
+    const done = e.target.classList.toggle('done');
+    todo.classList.toggle('done', done);
+    e.target.textContent = done ? '✓' : '';
+    autoSave();
+  }
+});
+$('shareBtn').addEventListener('click', ()=>{
+  const n = note(); if(!n) return;
+  const text = (n.title? n.title+'\n\n':'') + plain(n.html);
+  if(navigator.share){ navigator.share({title:n.title||'Note', text}).catch(()=>{}); }
+  else if(navigator.clipboard){ navigator.clipboard.writeText(text).then(()=>alert2('Note copied to clipboard.')); }
+});
+
+/* ---------- action sheet ---------- */
+function openSheet(opts){
+  const box = $('sheetOpts'); box.innerHTML='';
+  opts.forEach(o=>{
+    const b = document.createElement('button');
+    b.textContent = o.label; if(o.danger) b.classList.add('danger');
+    b.addEventListener('click', ()=>{ closeSheet(); setTimeout(o.fn, 120); });
+    box.appendChild(b);
+  });
+  $('sheet').classList.add('open'); $('scrim').classList.add('open');
+}
+function closeSheet(){ $('sheet').classList.remove('open'); $('scrim').classList.remove('open'); }
+$('sheetCancel').addEventListener('click', closeSheet);
+$('scrim').addEventListener('click', closeSheet);
+
+/* ---------- modal ---------- */
+let modalCb = null, modalMode = 'prompt';
+function promptModal(title, sub, initial, cb){
+  modalMode='prompt'; modalCb=cb;
+  $('mTitle').textContent=title; $('mSub').textContent=sub||'';
+  $('mInput').classList.remove('hidden'); $('mInput').value=initial||'';
+  $('mOk').textContent='Save';
+  $('modal').classList.add('open');
+  setTimeout(()=>$('mInput').focus(), 100);
+}
+function confirmModal(title, sub, cb){
+  modalMode='confirm'; modalCb=cb;
+  $('mTitle').textContent=title; $('mSub').textContent=sub||'';
+  $('mInput').classList.add('hidden');
+  $('mOk').textContent='Delete';
+  $('modal').classList.add('open');
+}
+function alert2(msg){
+  modalMode='alert'; modalCb=null;
+  $('mTitle').textContent=msg; $('mSub').textContent='';
+  $('mInput').classList.add('hidden');
+  $('mOk').textContent='OK'; $('mCancel').style.display='none';
+  $('modal').classList.add('open');
+}
+$('mCancel').addEventListener('click', ()=>{ $('modal').classList.remove('open'); $('mCancel').style.display=''; });
+$('mOk').addEventListener('click', ()=>{
+  $('modal').classList.remove('open'); $('mCancel').style.display='';
+  if(modalCb) modalCb(modalMode==='prompt' ? $('mInput').value : true);
+});
+
+/* ---------- boot ---------- */
+load();
+openFolder = store.folders[0].id;
+renderFolders();
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+})();
+</script>
+</body>
+</html>
